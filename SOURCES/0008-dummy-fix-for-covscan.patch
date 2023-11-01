@@ -1,0 +1,59 @@
+From a9e6eecdd61b43367d5b7873532952db54b1b124 Mon Sep 17 00:00:00 2001
+From: Benjamin Tissoires <benjamin.tissoires@gmail.com>
+Date: Thu, 11 Apr 2019 17:27:12 +0200
+Subject: [PATCH 8/9] dummy fix for covscan
+
+covscan seems lost here:
+
+Error: RESOURCE_LEAK (CWE-772):
+libXt-20190411/src/Intrinsic.c:1074: alloc_fn: Storage is returned from allocation function "__XtMalloc".
+libXt-20190411/src/Intrinsic.c:1074: var_assign: Assigning: "buf2" = storage returned from "__XtMalloc(4096U)".
+libXt-20190411/src/Intrinsic.c:1110: leaked_storage: Variable "buf2" going out of scope leaks the storage it points to.
+
+Error: USE_AFTER_FREE (CWE-416):
+libXt-20190411/src/Intrinsic.c:1113: alias: Assigning: "buf" = "buf2". Now both point to the same storage.
+libXt-20190411/src/Intrinsic.c:1108: freed_arg: "XtFree" frees "buf2".
+libXt-20190411/src/Intrinsic.c:1110: use_after_free: Using freed pointer "buf".
+
+Both are false positive, but we can make it understand where it
+is wrong.
+
+Signed-off-by: Benjamin Tissoires <benjamin.tissoires@gmail.com>
+---
+ src/Intrinsic.c | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/Intrinsic.c b/src/Intrinsic.c
+index 450dce7..3a16d5e 100644
+--- a/src/Intrinsic.c
++++ b/src/Intrinsic.c
+@@ -1070,8 +1070,9 @@ String XtFindFile(
+     int len;
+     Boolean firstTime = TRUE;
+ 
+-    buf = buf1 = __XtMalloc((unsigned)PATH_MAX);
++    buf1 = __XtMalloc((unsigned)PATH_MAX);
+     buf2 = __XtMalloc((unsigned)PATH_MAX);
++    buf = buf1;
+ 
+     if (predicate == NULL) predicate = TestFile;
+ 
+@@ -1105,9 +1106,12 @@ String XtFindFile(
+ #ifdef XNL_DEBUG
+ 		    printf("File found.\n");
+ #endif /* XNL_DEBUG */
+-		    if (buf == buf1) XtFree(buf2);
+-		    else XtFree(buf1);
+-		    return buf;
++		    if (buf == buf1) {
++			XtFree(buf2);
++			return buf1;
++		    }
++		    XtFree(buf1);
++		    return buf2;
+ 		}
+ 		if (buf == buf1)
+ 		    buf = buf2;
+-- 
+2.19.2
+

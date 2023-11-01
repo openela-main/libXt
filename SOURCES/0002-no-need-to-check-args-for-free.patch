@@ -1,0 +1,25 @@
+From 7eeaf69c224d6b7625d9214ba23df7e5e9d50d3c Mon Sep 17 00:00:00 2001
+From: Walter Harms <wharms@bfs.de>
+Date: Tue, 8 Jan 2019 22:26:25 +0100
+Subject: [PATCH 2/9] no need to check args for free
+
+---
+ src/Alloc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/Alloc.c b/src/Alloc.c
+index c9ffce8..754881b 100644
+--- a/src/Alloc.c
++++ b/src/Alloc.c
+@@ -214,7 +214,7 @@ char *XtCalloc(
+ void XtFree(
+     char *ptr)
+ {
+-    if (ptr != NULL) Xfree(ptr);
++    free(ptr);
+ }
+ 
+ char* __XtMalloc(
+-- 
+2.19.2
+

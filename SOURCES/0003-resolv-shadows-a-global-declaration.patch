@@ -1,0 +1,69 @@
+From e91a7c6e2be7fc5bb7eb5b8e9d28b9bcc36f446b Mon Sep 17 00:00:00 2001
+From: Walter Harms <wharms@bfs.de>
+Date: Fri, 11 Jan 2019 22:54:47 +0100
+Subject: [PATCH 3/9] resolv:shadows a global declaration
+
+---
+ util/makestrs.c | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/util/makestrs.c b/util/makestrs.c
+index 5764849..488c9bb 100644
+--- a/util/makestrs.c
++++ b/util/makestrs.c
+@@ -88,7 +88,7 @@ static int   solaris_abi_names = FALSE;
+  * commandline. Needed to separate source and build directories.
+  */
+ static char* includedir = NULL;
+-static FILE *ifopen(const char *file, const char *mode)
++static FILE *ifopen(const char *myfile, const char *mode)
+ {
+ #ifndef HAVE_ASPRINTF
+     size_t len;
+@@ -97,13 +97,13 @@ static FILE *ifopen(const char *file, const char *mode)
+     FILE *ret;
+ 
+     if (includedir == NULL)
+-        return fopen(file, mode);
++        return fopen(myfile, mode);
+ 
+ #ifdef HAVE_ASPRINTF
+-    if (asprintf(&buffer, "%s/%s", includedir, file) == -1)
++    if (asprintf(&buffer, "%s/%s", includedir, myfile) == -1)
+         return NULL;
+ #else
+-    len = strlen(file) + strlen(includedir) + 1;
++    len = strlen(myfile) + strlen(includedir) + 1;
+     buffer = (char*)malloc(len + 1);
+     if (buffer == NULL)
+         return NULL;
+@@ -622,7 +622,7 @@ static void DoLine(char *buf)
+     }
+ }
+ 
+-static void IntelABIIndexEntries (File *file)
++static void IntelABIIndexEntries (File *myfile)
+ {
+     Table* t;
+     TableEnt* te;
+@@ -635,7 +635,7 @@ static void IntelABIIndexEntries (File *file)
+     }
+ }
+ 
+-static void DefaultIndexEntries (File *file)
++static void DefaultIndexEntries (File *myfile)
+ {
+     Table* t;
+     TableEnt* te;
+@@ -649,7 +649,7 @@ static void DefaultIndexEntries (File *file)
+     }
+ }
+ 
+-static void IndexEntries (File *file, int abi)
++static void IndexEntries (File *myfile, int abi)
+ {
+     switch (abi) {
+     case X_SPARC_ABI:
+-- 
+2.19.2
+

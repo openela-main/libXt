@@ -1,0 +1,206 @@
+From 15ce56425b5e5b89486481fdf7a8b077639f3c78 Mon Sep 17 00:00:00 2001
+From: "Thomas E. Dickey" <dickey@invisible-island.net>
+Date: Sun, 17 Mar 2019 20:59:21 -0400
+Subject: [PATCH 6/9] Use standard size_t type in the casts for
+ length-parameter of memcpy, memmove and bzero.  When the library was written
+ (1989), none of those had been standardized, and the source-code used "(int)"
+ casts to help with K&R compilers.  The cleanup done in the previous update
+ used binary-compare to validate, which does not work for these because the
+ compiler is recording the cast's effect.
+
+This change reduces the number of gcc warnings from 163 to 128.
+
+Signed-off-by: Thomas E. Dickey <dickey@invisible-island.net>
+---
+ include/X11/IntrinsicI.h |  6 +++---
+ src/Create.c             |  6 +++---
+ src/Resources.c          | 24 ++++++++++++------------
+ src/SetValues.c          |  8 ++++----
+ 4 files changed, 22 insertions(+), 22 deletions(-)
+
+diff --git a/include/X11/IntrinsicI.h b/include/X11/IntrinsicI.h
+index 6e2396b..c028701 100644
+--- a/include/X11/IntrinsicI.h
++++ b/include/X11/IntrinsicI.h
+@@ -110,14 +110,14 @@ SOFTWARE.
+ 
+ #define XtMemmove(dst, src, size)	\
+     if ((char *)(dst) != (char *)(src)) {		    \
+-	(void) memcpy((char *) (dst), (char *) (src), (int) (size)); \
++	(void) memcpy((char *) (dst), (char *) (src), (size_t) (size)); \
+     }
+ 
+ #define XtBZero(dst, size) 	\
+-	bzero((char *) (dst), (int) (size))
++	bzero((char *) (dst), (size_t) (size))
+ 
+ #define XtMemcmp(b1, b2, size) 		\
+-	memcmp((char *) (b1), (char *) (b2), (int) (size))
++	memcmp((char *) (b1), (char *) (b2), (size_t) (size))
+ 
+ 
+ /****************************************************************
+diff --git a/src/Create.c b/src/Create.c
+index da00192..bbea9ce 100644
+--- a/src/Create.c
++++ b/src/Create.c
+@@ -412,14 +412,14 @@ xtCreate(
+     wsize = widget_class->core_class.widget_size;
+     csize = 0;
+     req_widget = (Widget) XtStackAlloc(wsize, widget_cache);
+-    (void) memmove ((char *) req_widget, (char *) widget, (int) wsize);
++    (void) memmove ((char *) req_widget, (char *) widget, (size_t) wsize);
+     CallInitialize (XtClass(widget), req_widget, widget, args, num_args);
+     if (parent_constraint_class != NULL) {
+         csize = parent_constraint_class->constraint_class.constraint_size;
+ 	if (csize) {
+ 	    req_constraints = XtStackAlloc(csize, constraint_cache);
+ 	    (void) memmove((char*)req_constraints, widget->core.constraints,
+-			(int)csize);
++			(size_t)csize);
+ 	    req_widget->core.constraints = req_constraints;
+ 	} else req_widget->core.constraints = NULL;
+ 	CallConstraintInitialize(parent_constraint_class, req_widget, widget,
+@@ -778,7 +778,7 @@ _XtCreateHookObj(Screen* screen)
+     CompileCallbacks(hookobj);
+     wsize = hookObjectClass->core_class.widget_size;
+     req_widget = (Widget) XtStackAlloc(wsize, widget_cache);
+-    (void) memmove ((char *) req_widget, (char *) hookobj, (int) wsize);
++    (void) memmove ((char *) req_widget, (char *) hookobj, (size_t) wsize);
+     CallInitialize (hookObjectClass, req_widget, hookobj,
+ 		(ArgList)NULL, (Cardinal) 0);
+     XtStackFree((XtPointer)req_widget, widget_cache);
+diff --git a/src/Resources.c b/src/Resources.c
+index 9e0f065..456da7a 100644
+--- a/src/Resources.c
++++ b/src/Resources.c
+@@ -110,7 +110,7 @@ void _XtCopyFromArg(
+     register unsigned int size)
+ {
+     if (size > sizeof(XtArgVal))
+-	(void) memmove((char *) dst, (char *)  src, (int) size);
++	(void) memmove((char *) dst, (char *)  src, (size_t) size);
+     else {
+ 	union {
+ 	    long	longval;
+@@ -133,7 +133,7 @@ void _XtCopyFromArg(
+ 	else if (size == sizeof(char*))	    u.charptr = (char*)src;
+ 	else				    p = (char*)&src;
+ 
+-	(void) memmove(dst, p, (int) size);
++	(void) memmove(dst, p, (size_t) size);
+     }
+ } /* _XtCopyFromArg */
+ 
+@@ -158,7 +158,7 @@ void _XtCopyToArg(
+ 	    XtPointer	ptr;
+ 	} u;
+ 	if (size <= sizeof(XtArgVal)) {
+-	    (void) memmove((char*)&u, (char*)src, (int)size );
++	    (void) memmove((char*)&u, (char*)src, (size_t)size );
+ 	    if	    (size == sizeof(long)) 	*dst = (XtArgVal)u.longval;
+ #ifdef LONG64
+ 	    else if (size == sizeof(int))	*dst = (XtArgVal)u.intval;
+@@ -167,10 +167,10 @@ void _XtCopyToArg(
+ 	    else if (size == sizeof(char))	*dst = (XtArgVal)u.charval;
+ 	    else if (size == sizeof(char*))	*dst = (XtArgVal)u.charptr;
+ 	    else if (size == sizeof(XtPointer))	*dst = (XtArgVal)u.ptr;
+-	    else (void) memmove((char*)dst, (char*)src, (int)size );
++	    else (void) memmove((char*)dst, (char*)src, (size_t)size );
+ 	}
+ 	else
+-	    (void) memmove((char*)dst, (char*)src, (int)size );
++	    (void) memmove((char*)dst, (char*)src, (size_t)size );
+ #else
+ 	XtErrorMsg("invalidGetValues", "xtGetValues", XtCXtToolkitError,
+ 	    "NULL ArgVal in XtGetValues", (String*) NULL, (Cardinal*) NULL);
+@@ -178,7 +178,7 @@ void _XtCopyToArg(
+     }
+     else {
+ 	/* proper GetValues semantics: argval is pointer to destination */
+-	(void) memmove((char*)*dst, (char*)src, (int)size );
++	(void) memmove((char*)*dst, (char*)src, (size_t)size );
+     }
+ } /* _XtCopyToArg */
+ 
+@@ -202,7 +202,7 @@ static void CopyToArg(
+ 	    XtPointer	ptr;
+ 	} u;
+ 	if (size <= sizeof(XtArgVal)) {
+-	    (void) memmove((char*)&u, (char*)src, (int)size );
++	    (void) memmove((char*)&u, (char*)src, (size_t)size );
+ 	    if	    (size == sizeof(long)) 	*dst = (XtArgVal)u.longval;
+ #ifdef LONG64
+ 	    else if (size == sizeof(int))	*dst = (XtArgVal)u.intval;
+@@ -211,14 +211,14 @@ static void CopyToArg(
+ 	    else if (size == sizeof(char))	*dst = (XtArgVal)u.charval;
+ 	    else if (size == sizeof(char*))	*dst = (XtArgVal)u.charptr;
+ 	    else if (size == sizeof(XtPointer))	*dst = (XtArgVal)u.ptr;
+-	    else (void) memmove((char*)dst, (char*)src, (int)size );
++	    else (void) memmove((char*)dst, (char*)src, (size_t)size );
+ 	}
+ 	else
+-	    (void) memmove((char*)dst, (char*)src, (int)size );
++	    (void) memmove((char*)dst, (char*)src, (size_t)size );
+     }
+     else {
+ 	/* proper GetValues semantics: argval is pointer to destination */
+-	(void) memmove((char*)*dst, (char*)src, (int)size );
++	(void) memmove((char*)*dst, (char*)src, (size_t)size );
+     }
+ } /* CopyToArg */
+ 
+@@ -519,8 +519,8 @@ static XtCacheRef *GetResources(
+     }
+ 
+     /* Mark each resource as not found on arg list */
+-    bzero((char *) found, (int) (num_resources * sizeof(Boolean)));
+-    bzero((char *) typed, (int) (num_resources * sizeof(int)));
++    bzero((char *) found, (size_t) (num_resources * sizeof(Boolean)));
++    bzero((char *) typed, (size_t) (num_resources * sizeof(int)));
+ 
+     /* Copy the args into the resources, mark each as found */
+     {
+diff --git a/src/SetValues.c b/src/SetValues.c
+index e432ec7..f274000 100644
+--- a/src/SetValues.c
++++ b/src/SetValues.c
+@@ -224,7 +224,7 @@ void XtSetValues(
+     UNLOCK_PROCESS;
+     oldw = (Widget) XtStackAlloc(widgetSize, oldwCache);
+     reqw = (Widget) XtStackAlloc (widgetSize, reqwCache);
+-    (void) memmove((char *) oldw, (char *) w, (int) widgetSize);
++    (void) memmove((char *) oldw, (char *) w, (size_t) widgetSize);
+ 
+     /* Set resource values */
+ 
+@@ -233,7 +233,7 @@ void XtSetValues(
+ 	wc->core_class.num_resources, args, num_args);
+     UNLOCK_PROCESS;
+ 
+-    (void) memmove ((char *) reqw, (char *) w, (int) widgetSize);
++    (void) memmove ((char *) reqw, (char *) w, (size_t) widgetSize);
+ 
+     hasConstraints = (XtParent(w) != NULL && !XtIsShell(w) && XtIsConstraint(XtParent(w)));
+ 
+@@ -253,7 +253,7 @@ void XtSetValues(
+ 	oldw->core.constraints = XtStackAlloc(constraintSize, oldcCache);
+ 	reqw->core.constraints = XtStackAlloc(constraintSize, reqcCache);
+ 	(void) memmove((char *) oldw->core.constraints,
+-		       (char *) w->core.constraints, (int) constraintSize);
++		       (char *) w->core.constraints, (size_t) constraintSize);
+ 
+ 	/* Set constraint values */
+ 	LOCK_PROCESS;
+@@ -262,7 +262,7 @@ void XtSetValues(
+ 	    cwc->constraint_class.num_resources, args, num_args);
+ 	UNLOCK_PROCESS;
+ 	(void) memmove((char *) reqw->core.constraints,
+-		       (char *) w->core.constraints, (int) constraintSize);
++		       (char *) w->core.constraints, (size_t) constraintSize);
+     }
+ 
+     /* Inform widget of changes, then inform parent of changes */
+-- 
+2.19.2
+

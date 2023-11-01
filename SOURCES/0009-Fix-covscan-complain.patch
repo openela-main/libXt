@@ -1,0 +1,69 @@
+From fa2acae4f13209aaefa5a38d046aca3da545fe63 Mon Sep 17 00:00:00 2001
+From: Benjamin Tissoires <benjamin.tissoires@gmail.com>
+Date: Thu, 11 Apr 2019 17:21:17 +0200
+Subject: [PATCH 9/9] Fix covscan complain
+
+covscan gets confused by the test before the XtFree.
+
+Error: RESOURCE_LEAK (CWE-772):
+libXt-20190411/src/Event.c:743: alloc_fn: Storage is returned from allocation function "__XtMalloc".
+libXt-20190411/src/Event.c:743: var_assign: Assigning: "proc" = storage returned from "__XtMalloc((Cardinal)((size_t)numprocs * 16UL))".
+libXt-20190411/src/Event.c:745: var_assign: Assigning: "closure" = "proc".
+libXt-20190411/src/Event.c:776: leaked_storage: Variable "closure" going out of scope leaks the storage it points to.
+libXt-20190411/src/Event.c:776: leaked_storage: Variable "proc" going out of scope leaks the storage it points to.
+
+Mixing static arrays and dynamic ones was a good idea
+in the 90s when malloc was expensive, but now, we should
+probably make the code clearer by just allocating the
+memory when needed.
+
+Signed-off-by: Benjamin Tissoires <benjamin.tissoires@gmail.com>
+---
+ src/Event.c | 17 +++++------------
+ 1 file changed, 5 insertions(+), 12 deletions(-)
+
+diff --git a/src/Event.c b/src/Event.c
+index 11823d6..c01b65d 100644
+--- a/src/Event.c
++++ b/src/Event.c
+@@ -725,8 +725,6 @@ static Boolean CallEventHandlers(
+     register XtEventRec *p;
+     XtEventHandler *proc;
+     XtPointer *closure;
+-    XtEventHandler procs[EHMAXSIZE];
+-    XtPointer closures[EHMAXSIZE];
+     Boolean cont_to_disp = True;
+     int i, numprocs;
+ 
+@@ -739,14 +737,10 @@ static Boolean CallEventHandlers(
+ 	    (p->has_type_specifier && event->type == EXT_TYPE(p)))
+ 	    numprocs++;
+     }
+-    if (numprocs > EHMAXSIZE) {
+-	proc = (XtEventHandler *)__XtMalloc(numprocs * (sizeof(XtEventHandler) +
+-						      sizeof(XtPointer)));
+-	closure = (XtPointer *)(proc + numprocs);
+-    } else {
+-	proc = procs;
+-	closure = closures;
+-    }
++    proc = (XtEventHandler *)__XtMalloc(numprocs * (sizeof(XtEventHandler) +
++						   sizeof(XtPointer)));
++    closure = (XtPointer *)(proc + numprocs);
++
+     numprocs = 0;
+     for (p=widget->core.event_table; p; p = p->next) {
+ 	if ((!p->has_type_specifier && (mask & p->mask)) ||
+@@ -771,8 +765,7 @@ static Boolean CallEventHandlers(
+ 		*/
+     for (i = 0; i < numprocs && cont_to_disp; i++)
+ 	(*(proc[i]))(widget, closure[i], event, &cont_to_disp);
+-    if (numprocs > EHMAXSIZE)
+-	XtFree((char *)proc);
++    XtFree((char *)proc);
+     return cont_to_disp;
+ }
+ 
+-- 
+2.19.2
+
