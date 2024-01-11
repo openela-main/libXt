@@ -1,0 +1,93 @@
+From 94a56091c648b4d2c922b781a9d5031c45aa1908 Mon Sep 17 00:00:00 2001
+From: "Thomas E. Dickey" <dickey@invisible-island.net>
+Date: Tue, 12 Mar 2019 04:34:28 -0400
+Subject: [PATCH 4/9] fix build when XT_GEO_TATTLER is defined That turns on a
+ debugging feature (activated by a resource setting). Its use of <stdarg.h>
+ was incorrect.  Also fix compiler warnings in the related file.
+
+Signed-off-by: Thomas E. Dickey <dickey@invisible-island.net>
+---
+ include/X11/IntrinsicI.h |  1 +
+ src/Intrinsic.c          | 16 ++++++++--------
+ 2 files changed, 9 insertions(+), 8 deletions(-)
+
+diff --git a/include/X11/IntrinsicI.h b/include/X11/IntrinsicI.h
+index 845ab48..6e2396b 100644
+--- a/include/X11/IntrinsicI.h
++++ b/include/X11/IntrinsicI.h
+@@ -196,6 +196,7 @@ extern void _XtGClistFree(Display *dpy, XtPerDisplay pd);
+ extern void _XtGeoTab (int);
+ extern void _XtGeoTrace (
+ 			    Widget widget,
++			    const char *,
+ 			    ...
+ ) _X_ATTRIBUTE_PRINTF(2,3);
+ 
+diff --git a/src/Intrinsic.c b/src/Intrinsic.c
+index 7119b09..450dce7 100644
+--- a/src/Intrinsic.c
++++ b/src/Intrinsic.c
+@@ -85,13 +85,14 @@ in this Software without prior written authorization from The Open Group.
+ #include <direct.h>            /* for _getdrives() */
+ #endif
+ 
++#include <stdio.h>
+ #include <stdlib.h>
+ 
+ String XtCXtToolkitError = "XtToolkitError";
+ 
+ Boolean XtIsSubclass(
+     Widget    widget,
+-    WidgetClass widgetClass)
++    WidgetClass myWidgetClass)
+ {
+     register WidgetClass w;
+     Boolean retval = FALSE;
+@@ -100,7 +101,7 @@ Boolean XtIsSubclass(
+     LOCK_APP(app);
+     LOCK_PROCESS;
+     for (w = widget->core.widget_class; w != NULL; w = w->core_class.superclass)
+-	if (w == widgetClass) {
++	if (w == myWidgetClass) {
+ 	    retval = TRUE;
+ 	    break;
+ 	}
+@@ -128,7 +129,7 @@ Boolean _XtCheckSubclassFlag(
+ 
+ Boolean _XtIsSubclassOf(
+     Widget object,
+-    WidgetClass widgetClass,
++    WidgetClass myWidgetClass,
+     WidgetClass superClass,
+     _XtXtEnum flag)
+ {
+@@ -139,7 +140,7 @@ Boolean _XtIsSubclassOf(
+     } else {
+ 	register WidgetClass c = object->core.widget_class;
+ 	while (c != superClass) {
+-	    if (c == widgetClass) {
++	    if (c == myWidgetClass) {
+ 		UNLOCK_PROCESS;
+ 		return True;
+ 	    }
+@@ -1566,14 +1567,13 @@ _XtGeoTab (int direction)  /* +1 or -1 */
+ 
+ 
+ void
+-_XtGeoTrace (Widget widget, ...)
++_XtGeoTrace (Widget widget, const char *fmt, ...)
+ {
+     va_list args;
+-    char *fmt;
+     int i ;
++
+     if (IsTattled(widget)) {
+-	va_start(args, widget);
+-	fmt = va_arg(args, char *);
++	va_start(args, fmt);
+ 	for (i=0; i<n_tab; i++) printf("     ");
+ 	(void) vprintf(fmt, args);
+ 	va_end(args);
+-- 
+2.19.2
+

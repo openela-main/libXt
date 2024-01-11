@@ -1,0 +1,134 @@
+From 1d555838d03f191d5f21268868a4ea180c2b24f2 Mon Sep 17 00:00:00 2001
+From: Walter Harms <wharms@bfs.de>
+Date: Tue, 8 Jan 2019 21:25:00 +0100
+Subject: [PATCH 1/9] no need to check XFree arguments
+
+---
+ src/TMstate.c   |  5 ++---
+ src/VarCreate.c | 19 +++++++------------
+ src/VarGet.c    | 16 ++++------------
+ 3 files changed, 13 insertions(+), 27 deletions(-)
+
+diff --git a/src/TMstate.c b/src/TMstate.c
+index 4a634b4..9763fc0 100644
+--- a/src/TMstate.c
++++ b/src/TMstate.c
+@@ -742,8 +742,7 @@ static void FreeContext(
+       context->numMatches = 0;
+     else if (*contextPtr)
+     {
+-      if ((*contextPtr)->matches)
+-        XtFree ((char *) ((*contextPtr)->matches));
++      XtFree ((char *) ((*contextPtr)->matches));
+       XtFree((char *)*contextPtr);
+     }
+ 
+@@ -2062,7 +2061,7 @@ static Boolean ComposeTranslations(
+     dest->core.tm.proc_table =
+       (XtActionProc *) MakeBindData(newBindings, numNewBindings, bindData);
+ 
+-    if (bindData) XtFree((char *)bindData);
++    XtFree((char *)bindData);
+ 
+     dest->core.tm.translations = newTable;
+ 
+diff --git a/src/VarCreate.c b/src/VarCreate.c
+index 0fba379..4f5058c 100644
+--- a/src/VarCreate.c
++++ b/src/VarCreate.c
+@@ -79,9 +79,8 @@ _XtVaCreateWidget(
+     widget = _XtCreateWidget(name, widget_class, parent, (ArgList)NULL,
+ 		    (Cardinal)0, typed_args, num_args);
+ 
+-    if (typed_args != NULL) {
+-        XtFree((XtPointer)typed_args);
+-    }
++
++    XtFree((XtPointer)typed_args);
+ 
+     return widget;
+ }
+@@ -165,9 +164,8 @@ XtVaAppCreateShell(
+     _XtVaToTypedArgList(var, total_count, &typed_args, &num_args);
+     widget = _XtAppCreateShell((String)name, (String)class, widget_class,
+ 		display, (ArgList)NULL, (Cardinal)0, typed_args, num_args);
+-    if (typed_args != NULL) {
+-	XtFree((XtPointer)typed_args);
+-    }
++
++    XtFree((XtPointer)typed_args);
+ 
+     va_end(var);
+     UNLOCK_APP(app);
+@@ -199,9 +197,8 @@ XtVaCreatePopupShell(
+     _XtVaToTypedArgList(var, total_count, &typed_args, &num_args);
+     widget = _XtCreatePopupShell((String)name, widget_class, parent,
+ 		(ArgList)NULL, (Cardinal)0, typed_args, num_args);
+-    if (typed_args != NULL) {
+-	XtFree((XtPointer)typed_args);
+-    }
++
++    XtFree((XtPointer)typed_args);
+ 
+     va_end(var);
+     UNLOCK_APP(app);
+@@ -254,9 +251,7 @@ XtVaSetSubvalues(XtPointer base, XtResourceList resources, Cardinal num_resource
+ 
+     XtSetSubvalues(base, resources, num_resources, args, num_args);
+ 
+-    if (num_args != 0) {
+-        XtFree((XtPointer)args);
+-    }
++    XtFree((XtPointer)args);
+ 
+     va_end(var);
+ }
+diff --git a/src/VarGet.c b/src/VarGet.c
+index 7b4cea6..ccd4d10 100644
+--- a/src/VarGet.c
++++ b/src/VarGet.c
+@@ -86,9 +86,7 @@ XtVaGetSubresources(
+     _XtGetSubresources(widget, base, name, class, resources, num_resources,
+ 	NULL, 0, args, num_args);
+ 
+-    if (num_args != 0) {
+-	XtFree((XtPointer)args);
+-    }
++    XtFree((XtPointer)args);
+ 
+     va_end(var);
+     UNLOCK_APP(app);
+@@ -116,9 +114,7 @@ XtVaGetApplicationResources(Widget widget, XtPointer base, XtResourceList resour
+     _XtGetApplicationResources(widget, base, resources, num_resources,
+ 	NULL, 0, args, num_args);
+ 
+-    if (num_args != 0) {
+-	XtFree((XtPointer)args);
+-    }
++    XtFree((XtPointer)args);
+ 
+     va_end(var);
+     UNLOCK_APP(app);
+@@ -273,9 +269,7 @@ XtVaGetValues(Widget widget, ...)
+     }
+     va_end(var);
+ 
+-    if (resources != (XtResourceList)NULL) {
+-	XtFree((XtPointer)resources);
+-    }
++    XtFree((XtPointer)resources);
+ 
+     if (total_count != typed_count) {
+ 	XtGetValues(widget, args, count);
+@@ -307,7 +301,5 @@ XtVaGetSubvalues(XtPointer base,XtResourceList  resources, Cardinal num_resource
+ 
+     XtGetSubvalues(base, resources, num_resources, args, num_args);
+ 
+-    if (num_args != 0) {
+-        XtFree((XtPointer)args);
+-    }
++    XtFree((XtPointer)args);
+ }
+-- 
+2.19.2
+

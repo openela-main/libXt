@@ -1,0 +1,118 @@
+From a35bef8c333f3fcf12d66e38ad769bc5f1df16a3 Mon Sep 17 00:00:00 2001
+From: Benjamin Tissoires <benjamin.tissoires@gmail.com>
+Date: Thu, 11 Apr 2019 17:26:58 +0200
+Subject: [PATCH 7/9] Fix leaks detected by covscan
+
+The following leaks are reported by covscan:
+
+Error: RESOURCE_LEAK (CWE-772):
+libXt-20190411/src/ResConfig.c:542: alloc_arg: "_get_part" allocates memory that is stored into "part".
+libXt-20190411/src/ResConfig.c:544: noescape: Resource "part" is not freed or pointed-to in "_match_resource_to_widget".
+libXt-20190411/src/ResConfig.c:560: leaked_storage: Variable "part" going out of scope leaks the storage it points to.
+
+Error: RESOURCE_LEAK (CWE-772):
+libXt-20190411/src/TMgrab.c:108: alloc_arg: "XtKeysymToKeycodeList" allocates memory that is stored into "keycodes".
+libXt-20190411/src/TMgrab.c:115: var_assign: Assigning: "keycodeP" = "keycodes".
+libXt-20190411/src/TMgrab.c:124: leaked_storage: Variable "keycodeP" going out of scope leaks the storage it points to.
+libXt-20190411/src/TMgrab.c:124: leaked_storage: Variable "keycodes" going out of scope leaks the storage it points to.
+
+Error: RESOURCE_LEAK (CWE-772):
+libXt-20190411/src/TMparse.c:1544: alloc_fn: Storage is returned from allocation function "XtMalloc".
+libXt-20190411/src/TMparse.c:1544: var_assign: Assigning: "event" = storage returned from "XtMalloc(88U)".
+libXt-20190411/src/TMparse.c:1549: noescape: Resource "event" is not freed or pointed-to in "ParseQuotedStringEvent".
+libXt-20190411/src/TMparse.c:1555: leaked_storage: Variable "event" going out of scope leaks the storage it points to.
+
+Error: RESOURCE_LEAK (CWE-772):
+libXt-20190411/src/TMparse.c:1779: alloc_fn: Storage is returned from allocation function "XtMalloc".
+libXt-20190411/src/TMparse.c:1779: var_assign: Assigning: "action" = storage returned from "XtMalloc(32U)".
+libXt-20190411/src/TMparse.c:1784: noescape: Resource "action" is not freed or pointed-to in "ParseAction".
+libXt-20190411/src/TMparse.c:1785: leaked_storage: Variable "action" going out of scope leaks the storage it points to.
+
+In addition to this legitimate leaks, covscan can get confused by
+the allocated memory in XtKeysymToKeycodeList:
+
+Error: RESOURCE_LEAK (CWE-772):
+libXt-20190411/src/TMgrab.c:108: alloc_arg: "XtKeysymToKeycodeList" allocates memory that is stored into "keycodes".
+libXt-20190411/src/TMgrab.c:114: leaked_storage: Variable "keycodes" going out of scope leaks the storage it points to.
+
+Signed-off-by: Benjamin Tissoires <benjamin.tissoires@gmail.com>
+---
+ src/ResConfig.c |  1 +
+ src/TMgrab.c    | 10 ++++++++--
+ src/TMparse.c   |  6 +++++-
+ 3 files changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/src/ResConfig.c b/src/ResConfig.c
+index 5a7f6d2..bd6792c 100644
+--- a/src/ResConfig.c
++++ b/src/ResConfig.c
+@@ -557,6 +557,7 @@ _set_and_search (
+ 			} else
+ 				_search_child (w, local_index, remainder,
+ 					resource, value, last_token, last_part);
++			XtFree (part);
+ 			return;
+ 		}
+ 		if (token == '*') {
+diff --git a/src/TMgrab.c b/src/TMgrab.c
+index 08cb486..4e7d20d 100644
+--- a/src/TMgrab.c
++++ b/src/TMgrab.c
+@@ -105,13 +105,17 @@ static void GrabAllCorrectKeys(
+     careOn |= modMatch->modifiers;
+     careMask |= modMatch->modifierMask;
+ 
++    keycodes = NULL;
+     XtKeysymToKeycodeList(
+ 	    dpy,
+ 	    (KeySym)typeMatch->eventCode,
+ 	    &keycodes,
+ 	    &keycount
+ 			 );
+-    if (keycount == 0) return;
++    if (keycount == 0) {
++	XtFree((char *)keycodes);
++	return;
++    }
+     for (keycodeP = keycodes; keycount--; keycodeP++) {
+ 	if (modMatch->standard) {
+ 	    /* find standard modifiers that produce this keysym */
+@@ -120,8 +124,10 @@ static void GrabAllCorrectKeys(
+ 	    Modifiers modifiers_return;
+ 	    XtTranslateKeycode( dpy, *keycodeP, (Modifiers)0,
+ 			        &modifiers_return, &keysym );
+-	    if (careOn & modifiers_return)
++	    if (careOn & modifiers_return) {
++		XtFree((char *)keycodes);
+ 		return;
++	    }
+ 	    if (keysym == typeMatch->eventCode) {
+ 		XtGrabKey(widget, *keycodeP, careOn,
+ 			  grabP->owner_events,
+diff --git a/src/TMparse.c b/src/TMparse.c
+index df94181..086f53d 100644
+--- a/src/TMparse.c
++++ b/src/TMparse.c
+@@ -1551,6 +1551,7 @@ static String ParseEventSeq(
+ 			XtCXtToolkitError,
+ 			"... probably due to non-Latin1 character in quoted string",
+ 			(String*)NULL, (Cardinal*)NULL);
++		    XtFree((char *)event);
+ 		    return PanicModeRecovery(str);
+ 		}
+ 		*nextEvent = event;
+@@ -1781,7 +1782,10 @@ static String ParseActionSeq(
+         action->next = NULL;
+ 
+ 	str = ParseAction(str, action, &quark, error);
+-	if (*error) return PanicModeRecovery(str);
++	if (*error) {
++	    XtFree((char *)action);
++	    return PanicModeRecovery(str);
++	}
+ 
+ 	action->idx = _XtGetQuarkIndex(parseTree, quark);
+ 	ScanWhitespace(str);
+-- 
+2.19.2
+
